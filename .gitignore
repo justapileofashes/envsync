@@ -1,0 +1,15 @@
+# Binaries
+envsync
+envsync.exe
+/dist/
+
+# Local EnvSync state (NEVER commit secrets or per-machine creds)
+.env
+.env.*
+!.env.example
+.envsync.json
+
+# Go
+/vendor/
+*.test
+*.out
