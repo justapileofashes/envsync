@@ -2,7 +2,7 @@
 // synchronization utility. See `envsync --help` for usage.
 package main
 
-import "github.com/envsync/envsync/cmd"
+import "github.com/justapileofashes/envsync/cmd"
 
 func main() {
 	cmd.Execute()

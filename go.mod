@@ -1,4 +1,4 @@
-module github.com/envsync/envsync
+module github.com/justapileofashes/envsync
 
 go 1.22
 

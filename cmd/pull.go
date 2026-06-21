@@ -5,9 +5,9 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/envsync/envsync/internal/config"
-	"github.com/envsync/envsync/internal/crypto"
-	"github.com/envsync/envsync/internal/env"
+	"github.com/justapileofashes/envsync/internal/config"
+	"github.com/justapileofashes/envsync/internal/crypto"
+	"github.com/justapileofashes/envsync/internal/env"
 	"github.com/spf13/cobra"
 )
 

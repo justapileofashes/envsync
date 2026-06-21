@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/envsync/envsync/internal/api"
-	"github.com/envsync/envsync/internal/config"
+	"github.com/justapileofashes/envsync/internal/api"
+	"github.com/justapileofashes/envsync/internal/config"
 	"github.com/spf13/cobra"
 )
 
