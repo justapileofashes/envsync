@@ -121,6 +121,14 @@ supabase/migrations   Postgres schema + RLS policies
 
 ## Web interface
 
-The web admin/marketing front-end is **not** part of this repository. When built,
-it handles seats, billing, project IDs, and version-history audits only — it must
-**never** touch the passphrase or decrypt any value.
+The marketing + admin front-end lives in [`web/`](./web) (Next.js). The landing
+page is implemented in `web/components/Landing.tsx` — dark, glassmorphic,
+terminal-aesthetic, with an animated `envsync pull` / `envsync run` terminal and
+a PayRam prepaid pricing table.
+
+```sh
+cd web && npm install && npm run dev   # http://localhost:3000
+```
+
+The web app handles seats, billing, project IDs, and version-history audits
+only — it must **never** touch the passphrase or decrypt any value.
