@@ -13,3 +13,8 @@ envsync.exe
 /vendor/
 *.test
 *.out
+
+# Design handoff prompts — never commit to the repo
+claude_design_prompt.md
+*_design_prompt.md
+*design-prompt*.md

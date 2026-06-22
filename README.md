@@ -117,12 +117,10 @@ internal/api          Supabase Auth + PostgREST client
 internal/env          .env parsing, formatting, backup
 internal/config       local credentials + workspace state
 supabase/migrations   Postgres schema + RLS policies
-claude_design_prompt.md   handoff brief for the web interface
 ```
 
 ## Web interface
 
-The web admin/marketing front-end is **not** built here. See
-[`claude_design_prompt.md`](./claude_design_prompt.md) for the complete handoff
-brief. The web app handles seats, billing, project IDs, and version-history
-audits only — it must **never** touch the passphrase or decrypt any value.
+The web admin/marketing front-end is **not** part of this repository. When built,
+it handles seats, billing, project IDs, and version-history audits only — it must
+**never** touch the passphrase or decrypt any value.
