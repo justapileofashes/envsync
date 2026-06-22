@@ -2,13 +2,18 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
+	"os"
 
 	"github.com/justapileofashes/envsync/internal/config"
-	"github.com/justapileofashes/envsync/internal/crypto"
+	"github.com/justapileofashes/envsync/internal/detect"
 	"github.com/justapileofashes/envsync/internal/env"
 	"github.com/spf13/cobra"
+)
+
+var (
+	pullOut      string
+	pullNoDetect bool
 )
 
 var pullCmd = &cobra.Command{
@@ -16,11 +21,17 @@ var pullCmd = &cobra.Command{
 	Short: "Download and decrypt the latest .env version",
 	Long: `Fetches the highest-versioned encrypted blob for this project,
 decrypts it locally with a key derived from your passphrase + the org salt,
-backs up any existing .env to .env.bak, and writes the decrypted result.`,
+backs up any existing target file to <file>.bak, and writes the result.
+
+By default the output filename is auto-detected from the project's framework
+(e.g. .env.local for Next.js, .env.development for Vite). Override with --out,
+or disable detection with --no-detect to use the file set during init.`,
 	RunE: runPull,
 }
 
 func init() {
+	pullCmd.Flags().StringVar(&pullOut, "out", "", "explicit output file (overrides auto-detection)")
+	pullCmd.Flags().BoolVar(&pullNoDetect, "no-detect", false, "skip framework auto-detection; use the init env file")
 	rootCmd.AddCommand(pullCmd)
 }
 
@@ -33,50 +44,50 @@ func runPull(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	if creds.Passphrase == "" {
-		return fmt.Errorf("no cryptographic passphrase set: re-run `envsync login`")
-	}
 
-	// 1. Fetch latest version.
 	ctx := context.Background()
-	latest, err := client.GetLatestEnvironment(ctx, ws.ProjectID)
-	if err != nil {
-		return err
-	}
-	if latest == nil {
-		return fmt.Errorf("nothing to pull: this project has no pushed versions yet")
-	}
-
-	// 2. Base64 decode + decrypt.
-	blob, err := base64.StdEncoding.DecodeString(latest.Ciphertext)
-	if err != nil {
-		return fmt.Errorf("server returned malformed ciphertext (invalid base64): %w", err)
-	}
-	key, err := deriveKey(creds.Passphrase, ws.Salt)
-	if err != nil {
-		return err
-	}
-	plaintext, err := crypto.Decrypt(key, blob)
-	if err != nil {
-		return err
-	}
-	payload, err := env.Unmarshal(plaintext)
+	payload, latest, err := fetchLatestPayload(ctx, client, creds, ws)
 	if err != nil {
 		return err
 	}
 
-	// 3. Back up existing .env then write.
-	backup, err := env.Backup(ws.EnvFile)
+	// Resolve the target filename.
+	target := resolvePullTarget(ws)
+
+	// Back up existing file then write.
+	backup, err := env.Backup(target)
 	if err != nil {
 		return err
 	}
 	if backup != "" {
-		fmt.Printf("Backed up existing %s -> %s\n", ws.EnvFile, backup)
+		fmt.Printf("Backed up existing %s -> %s\n", target, backup)
 	}
-	if err := env.Write(ws.EnvFile, payload); err != nil {
+	if err := env.Write(target, payload); err != nil {
 		return err
 	}
 
-	fmt.Printf("Pulled v%d (%d variable(s)) into %s.\n", latest.VersionSequence, len(payload.Values), ws.EnvFile)
+	fmt.Printf("Pulled v%d (%d variable(s)) into %s.\n", latest.VersionSequence, len(payload.Values), target)
 	return nil
+}
+
+// resolvePullTarget decides where to write the decrypted env file, honoring (in
+// order): --out, --no-detect, framework auto-detection, then the workspace file.
+func resolvePullTarget(ws *config.Workspace) string {
+	if pullOut != "" {
+		return pullOut
+	}
+	if pullNoDetect {
+		return ws.EnvFile
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ws.EnvFile
+	}
+	res := detect.Detect(cwd)
+	if res.Framework != "" {
+		fmt.Printf("Detected %s — writing %s\n", res.Framework, res.EnvFile)
+		return res.EnvFile
+	}
+	return ws.EnvFile
 }

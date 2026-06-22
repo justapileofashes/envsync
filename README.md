@@ -25,7 +25,34 @@ envsync login                 # authenticate + set the team passphrase (local on
 envsync init <project_id>     # link this directory to a remote project
 envsync push                  # encrypt and upload the local .env as a new version
 envsync pull                  # download and decrypt the latest .env (backs up to .env.bak)
+envsync run -- npm run dev     # run a command with secrets injected into RAM (zero-disk)
 ```
+
+### Zero-disk injection (`run`)
+
+`envsync run -- <command>` decrypts the latest environment and injects the
+variables straight into the child process's environment. The secrets are
+**never written to disk** — they live only in RAM for the command's lifetime
+and disappear when it exits. Child exit codes are propagated transparently.
+
+```sh
+envsync run -- go run main.go
+envsync run -- next dev
+```
+
+### Smart framework auto-detection
+
+`envsync pull` inspects the project (`package.json` deps + config files) and
+writes the dotenv file under the name the framework actually loads:
+
+| Detected            | Output file                |
+|---------------------|----------------------------|
+| Next.js             | `.env.local`               |
+| Vite                | `.env.development`         |
+| Create React App    | `.env.development.local`   |
+| Remix / Astro / SvelteKit / Nuxt / Django / Rails | `.env` |
+
+Override with `--out <file>`, or disable detection with `--no-detect`.
 
 `login` stores the Supabase JWT and the passphrase in
 `~/.envsync/credentials.json` (mode `0600`). `init` writes `.envsync.json` in the

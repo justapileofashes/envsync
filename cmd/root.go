@@ -24,7 +24,8 @@ Typical flow:
   envsync login                 # authenticate + set your team passphrase
   envsync init <project_id>     # link this directory to a remote project
   envsync push                  # encrypt and upload the local .env
-  envsync pull                  # download and decrypt the latest .env`,
+  envsync pull                  # download and decrypt the latest .env
+  envsync run -- npm run dev    # inject secrets into a command, zero-disk`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Version:       version,
