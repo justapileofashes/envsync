@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	pullOut      string
-	pullNoDetect bool
+	pullOut        string
+	pullNoDetect   bool
+	pullNoOverride bool
 )
 
 var pullCmd = &cobra.Command{
@@ -32,6 +33,7 @@ or disable detection with --no-detect to use the file set during init.`,
 func init() {
 	pullCmd.Flags().StringVar(&pullOut, "out", "", "explicit output file (overrides auto-detection)")
 	pullCmd.Flags().BoolVar(&pullNoDetect, "no-detect", false, "skip framework auto-detection; use the init env file")
+	pullCmd.Flags().BoolVar(&pullNoOverride, "no-override", false, "do not merge local "+env.DefaultOverrideFile)
 	rootCmd.AddCommand(pullCmd)
 }
 
@@ -49,6 +51,17 @@ func runPull(_ *cobra.Command, _ []string) error {
 	payload, latest, err := fetchLatestPayload(ctx, client, creds, ws)
 	if err != nil {
 		return err
+	}
+
+	// Merge personal local overrides (never pushed back).
+	if !pullNoOverride {
+		n, err := payload.MergeOverride(env.DefaultOverrideFile)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			fmt.Printf("Merged %d local override(s) from %s\n", n, env.DefaultOverrideFile)
+		}
 	}
 
 	// Resolve the target filename.

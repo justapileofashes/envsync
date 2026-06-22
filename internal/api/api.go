@@ -291,3 +291,43 @@ func (c *Client) NextVersion(ctx context.Context, projectID string) (int, error)
 	}
 	return latest.VersionSequence + 1, nil
 }
+
+// Grant is a time-limited, scoped access grant row.
+type Grant struct {
+	ID        string `json:"id,omitempty"`
+	ProjectID string `json:"project_id"`
+	TokenHash string `json:"token_hash"`
+	Role      string `json:"role"`
+	ExpiresAt string `json:"expires_at"`
+	Revoked   bool   `json:"revoked,omitempty"`
+	CreatedBy string `json:"created_by,omitempty"`
+	CreatedAt string `json:"created_at,omitempty"`
+}
+
+// InsertGrant mints a new access grant. Only the token hash is stored; the
+// caller is responsible for safely conveying the raw token to the grantee.
+func (c *Client) InsertGrant(ctx context.Context, g *Grant) (*Grant, error) {
+	payload := map[string]any{
+		"project_id": g.ProjectID,
+		"token_hash": g.TokenHash,
+		"role":       g.Role,
+		"expires_at": g.ExpiresAt,
+	}
+	if g.CreatedBy != "" {
+		payload["created_by"] = g.CreatedBy
+	}
+	body, _ := json.Marshal(payload)
+
+	raw, err := c.rest(ctx, http.MethodPost, "access_grants", nil, bytes.NewReader(body), "return=representation")
+	if err != nil {
+		return nil, err
+	}
+	var inserted []Grant
+	if err := json.Unmarshal(raw, &inserted); err != nil {
+		return nil, fmt.Errorf("insert grant: malformed response: %w", err)
+	}
+	if len(inserted) == 0 {
+		return nil, fmt.Errorf("insert grant: server returned no row (RLS may have blocked the write)")
+	}
+	return &inserted[0], nil
+}

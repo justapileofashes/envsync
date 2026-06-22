@@ -34,6 +34,33 @@ func Read(path string) (*Payload, error) {
 	return &Payload{Version: payloadVersion, Values: values}, nil
 }
 
+// DefaultOverrideFile is the conventional name for personal local overrides
+// that are merged on pull but never pushed back to the cloud.
+const DefaultOverrideFile = ".env.override"
+
+// MergeOverride layers key=value pairs from an override dotenv file on top of the
+// payload, with override values winning. It is a no-op (returns 0, nil) when the
+// override file does not exist. The override file is intentionally never pushed.
+func (p *Payload) MergeOverride(path string) (int, error) {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("env: cannot stat %s: %w", path, err)
+	}
+	overrides, err := godotenv.Read(path)
+	if err != nil {
+		return 0, fmt.Errorf("env: cannot read override %s: %w", path, err)
+	}
+	if p.Values == nil {
+		p.Values = map[string]string{}
+	}
+	for k, v := range overrides {
+		p.Values[k] = v
+	}
+	return len(overrides), nil
+}
+
 // Marshal serializes a Payload to the canonical JSON plaintext.
 func (p *Payload) Marshal() ([]byte, error) {
 	if p.Version == 0 {
@@ -92,6 +119,47 @@ func quoteIfNeeded(v string) string {
 		return `"` + escaped + `"`
 	}
 	return v
+}
+
+// DiffResult categorizes how two key/value sets differ. Keys are sorted.
+type DiffResult struct {
+	OnlyLeft  []string            // keys present on the left only
+	OnlyRight []string            // keys present on the right only
+	Changed   []string            // keys present on both but with differing values
+	Same      []string            // keys present on both with identical values
+	LeftVals  map[string]string   // for value display
+	RightVals map[string]string   //
+}
+
+// Diff compares two key/value maps (left = e.g. local, right = e.g. remote).
+func Diff(left, right map[string]string) DiffResult {
+	r := DiffResult{LeftVals: left, RightVals: right}
+	for k, lv := range left {
+		if rv, ok := right[k]; ok {
+			if lv == rv {
+				r.Same = append(r.Same, k)
+			} else {
+				r.Changed = append(r.Changed, k)
+			}
+		} else {
+			r.OnlyLeft = append(r.OnlyLeft, k)
+		}
+	}
+	for k := range right {
+		if _, ok := left[k]; !ok {
+			r.OnlyRight = append(r.OnlyRight, k)
+		}
+	}
+	sort.Strings(r.OnlyLeft)
+	sort.Strings(r.OnlyRight)
+	sort.Strings(r.Changed)
+	sort.Strings(r.Same)
+	return r
+}
+
+// Identical reports whether the two sides are fully equal.
+func (d DiffResult) Identical() bool {
+	return len(d.OnlyLeft) == 0 && len(d.OnlyRight) == 0 && len(d.Changed) == 0
 }
 
 // Backup copies an existing file to <path>.bak. It is a no-op (returns "", nil)
